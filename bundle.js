@@ -2429,12 +2429,16 @@ const drawBunnies = regl({
   precision mediump float;
   varying vec3 vNormal;
   varying vec3 vColor;
+  varying vec3 vPosition;
+  varying vec3 vGlPosition;
+  uniform float focal;
   void main () {
     vec3 color = vColor;
     vec3 ambient = vec3(0.3) * color;
     vec3 lightDir = vec3(0.39, 0.87, 0.29);
     vec3 diffuse = vec3(0.7) * color * clamp(dot(vNormal, lightDir) , 0.0, 1.0 );
-    gl_FragColor = vec4(ambient + diffuse, 1.0);
+    float z = 1.0 - (abs((150.0 * focal) - vGlPosition.z) / 150.0);
+    gl_FragColor = vec4(vec3(1.0,1.0,1.0) * z, 1.0);
   }`,
   vert: `
   precision mediump float;
@@ -2444,19 +2448,24 @@ const drawBunnies = regl({
   attribute vec3 offset;
   attribute vec3 color;
   attribute float angle;
+  uniform float focal;
   uniform mat4 proj;
   uniform mat4 model;
   uniform mat4 view;
   varying vec3 vNormal;
   varying vec3 vColor;
+  varying vec3 vPosition;
+  varying vec3 vGlPosition;
   void main () {
     vNormal = normal;
     vColor = color;
+    vPosition = position;
     gl_Position = proj * view * model * vec4(
       +cos(angle) * position.x + position.z * sin(angle) + offset.x,
       position.y + offset.y,
       -sin(angle) * position.x  + position.z * cos(angle) + offset.z,
       1.0);
+    vGlPosition = gl_Position.xyz;
   }`,
   attributes: {
     position: bunny.positions,
@@ -2494,6 +2503,7 @@ const drawBunnies = regl({
   elements: bunny.cells,
   instances: N * N,
   uniforms: {
+    focal: 0.7,
     proj: ({viewportWidth, viewportHeight}) =>
       mat4.perspective([],
         Math.PI / 2,
@@ -2507,7 +2517,7 @@ const drawBunnies = regl({
 
 regl.frame(() => {
   regl.clear({
-    color: [0, 0, 0, 1]
+    color: [1, 0, 0, 1]
   })
 
   // rotate the bunnies every frame.
