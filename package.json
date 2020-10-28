@@ -1,0 +1,28 @@
+{
+  "name": "ucf-graphics",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cyral/UCF-Graphics.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Cyral/UCF-Graphics/issues"
+  },
+  "homepage": "https://github.com/Cyral/UCF-Graphics#readme",
+  "dependencies": {
+    "angle-normals": "^1.0.0",
+    "browserify": "^17.0.0",
+    "bunny": "^1.0.1",
+    "canvas-fit": "^1.5.0",
+    "canvas-orbit-camera": "^1.0.2",
+    "gl-mat4": "^1.2.0",
+    "regl": "^2.0.1"
+  }
+}
