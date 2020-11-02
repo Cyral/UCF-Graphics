@@ -61,7 +61,7 @@ const drawBunnies = regl({
   varying vec3 vColor;
   varying vec3 vPosition;
   varying vec3 vGlPosition;
-  uniform float focal;
+  uniform vec3 focal;
   void main () {
     vec3 color = vColor;
     vec3 ambient = vec3(0.3) * color;
@@ -77,7 +77,7 @@ const drawBunnies = regl({
   attribute vec3 offset;
   attribute vec3 color;
   attribute float angle;
-  uniform float focal;
+  uniform vec3 focal;
   uniform mat4 proj;
   uniform mat4 model;
   uniform mat4 view;
@@ -132,7 +132,7 @@ const drawBunnies = regl({
   elements: bunny.cells,
   instances: N * N,
   uniforms: {
-    focal: 0.7,
+    focal: [0,0,0],
     proj: ({viewportWidth, viewportHeight}) =>
       mat4.perspective([],
         Math.PI / 2,
@@ -151,13 +151,13 @@ const drawBunniesMap = regl({
   varying vec3 vColor;
   varying vec3 vPosition;
   varying vec3 vGlPosition;
-  uniform float focal;
+  uniform vec3 focal;
   void main () {
     vec3 color = vColor;
     vec3 ambient = vec3(0.3) * color;
     vec3 lightDir = vec3(0.39, 0.87, 0.29);
     vec3 diffuse = vec3(0.7) * color * clamp(dot(vNormal, lightDir) , 0.0, 1.0 );
-    float z = 1.0 - (abs((100.0 * focal) - vGlPosition.z) / 100.0);
+    float z = 1.0 - (abs(distance(focal, vGlPosition)) / 100.0);
     gl_FragColor = vec4(vec3(1.0,1.0,1.0) * z, 1.0);
   }`,
   vert: `
@@ -168,7 +168,7 @@ const drawBunniesMap = regl({
   attribute vec3 offset;
   attribute vec3 color;
   attribute float angle;
-  uniform float focal;
+  uniform vec3 focal;
   uniform mat4 proj;
   uniform mat4 model;
   uniform mat4 view;
@@ -223,7 +223,7 @@ const drawBunniesMap = regl({
   elements: bunny.cells,
   instances: N * N,
   uniforms: {
-    focal: 0.7,
+    focal: [0,0,0],
     proj: ({viewportWidth, viewportHeight}) =>
       mat4.perspective([],
         Math.PI / 2,
@@ -323,7 +323,7 @@ regl.frame(({deltaTime, viewportWidth, viewportHeight}) => {
 
   setupDefault({}, () => {
     regl.clear({
-      color: [1, 0, 0, 1],
+      color: [0,0,0, 1],
       depth: 1,
     });
 
@@ -333,13 +333,12 @@ regl.frame(({deltaTime, viewportWidth, viewportHeight}) => {
     }
     angleBuffer.subdata(angle);
 
-
     drawBunnies();
   });
 
   setupMap({}, () => {
     regl.clear({
-      color: [1, 0, 0, 1],
+      color: [0, 0, 0, 1],
       depth: 1,
     });
 
