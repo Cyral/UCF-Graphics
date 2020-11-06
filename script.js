@@ -250,15 +250,14 @@ const drawBuffer = regl({
   varying vec2 fragPosition;
 
   void main() {
-    fragPosition = position;
+    fragPosition = 0.5 * (position + 1.0);
     gl_Position = vec4(position, 0, 1);
   }`,
   attributes: {
     position: [ -4, -4, 4, -4, 0, 4 ]
   },
   uniforms: {
-    tex: framebuffer,
-    maptex: mapframebuffer,
+    tex: mapframebuffer,
   },
   depth: { enable: false },
   count: 3,
@@ -274,14 +273,26 @@ const drawBufferBlurred = regl({
   #define R int(8)
 
   void main() {
+    const float Pi = 6.28318530718; // Pi*2
+    
+    // GAUSSIAN BLUR SETTINGS {{{
+    const float Directions = 16.0; // BLUR DIRECTIONS (Default 16.0 - More is better but slower)
+    const float Quality = 5.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
+    const float Size = 16.0; // BLUR SIZE (Radius)
     float W =  float((1 + 2 * R) * (1 + 2 * R));
     
-    vec4 avg = vec4(0.0);
-    for (int x = -R; x <= +R; x++) {
-      for (int y = -R; y <= +R; y++) {
-        avg += (1.0 / W) * texture2D(tex, fragPosition + vec2(float(x) * wRcp, float(y) * hRcp));
-      }
+    
+    vec4 avg = texture2D(tex, fragPosition);
+    for( float d=0.0; d<Pi; d+=Pi/Directions)
+    {
+        for(float i=1.0/Quality; i<=1.0; i+=1.0/Quality)
+        {
+          avg += texture2D(tex, fragPosition+vec2(cos(d) * wRcp,sin(d) * hRcp)*Size*i);
+        }
     }
+    avg /= Quality * Directions - 15.0;
+
+    
     vec4 actual = texture2D(tex, fragPosition);
     vec4 amount = texture2D(maptex, fragPosition);
     vec4 color = mix(actual, avg, 1.0 - amount.r);
@@ -349,7 +360,8 @@ regl.frame(({deltaTime, viewportWidth, viewportHeight}) => {
     color: [0, 0, 1, 1],
     depth: 1,
   });
-  drawBufferBlurred();
+  drawBuffer();
+  //drawBufferBlurred();
 
   camera.tick();
 })
