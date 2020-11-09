@@ -35,25 +35,9 @@ const mapframebuffer = regl.framebuffer({
 });
 
 // configure initial camera view.
-camera.rotate([0.0, 0.0], [0.0, -0.4])
-camera.zoom(70.0)
-
-var N = 15 // N bunnies on the width, N bunnies on the height.
-
-var angle = []
-for (var i = 0; i < N * N; i++) {
-  // generate random initial angle.
-  angle[i] = Math.random() * (2 * Math.PI)
-}
-
-// This buffer stores the angles of all
-// the instanced bunnies.
-const angleBuffer = regl.buffer({
-  length: angle.length * 4,
-  type: 'float',
-  usage: 'dynamic'
-})
-
+camera.rotate([0.0, 0.0], [0.0, 0.0]);
+camera.zoom(2000.0);
+camera.pan([0,.002]);
 const drawBunnies = regl({
   frag: `
   precision mediump float;
@@ -61,9 +45,9 @@ const drawBunnies = regl({
   varying vec3 vColor;
   varying vec3 vPosition;
   varying vec3 vGlPosition;
-  uniform vec3 focal;
+  uniform sampler2D tex;
   void main () {
-    vec3 color = vColor;
+    vec3 color = texture2D(tex, vPosition.xy).rgb;
     vec3 ambient = vec3(0.3) * color;
     vec3 lightDir = vec3(0.39, 0.87, 0.29);
     vec3 diffuse = vec3(0.7) * color * clamp(dot(vNormal, lightDir) , 0.0, 1.0 );
@@ -73,11 +57,7 @@ const drawBunnies = regl({
   precision mediump float;
   attribute vec3 position;
   attribute vec3 normal;
-  // These three are instanced attributes.
-  attribute vec3 offset;
-  attribute vec3 color;
-  attribute float angle;
-  uniform vec3 focal;
+
   uniform mat4 proj;
   uniform mat4 model;
   uniform mat4 view;
@@ -87,52 +67,18 @@ const drawBunnies = regl({
   varying vec3 vGlPosition;
   void main () {
     vNormal = normal;
-    vColor = color;
+    vColor = vec3(1.0,1.0,1.0);
     vPosition = position;
-    gl_Position = proj * view * model * vec4(
-      +cos(angle) * position.x + position.z * sin(angle) + offset.x,
-      position.y + offset.y,
-      -sin(angle) * position.x  + position.z * cos(angle) + offset.z,
-      1.0);
+    gl_Position = proj * view * model * vec4(position, 1.0);
     vGlPosition = gl_Position.xyz;
   }`,
   attributes: {
     position: bunny.positions,
     normal: normals(bunny.cells, bunny.positions),
-
-    offset: {
-      buffer: regl.buffer(
-        Array(N * N).fill().map((_, i) => {
-          var x = (-1 + 2 * Math.floor(i / N) / N) * 120
-          var z = (-1 + 2 * (i % N) / N) * 120
-          return [x, 0.0, z]
-        })),
-      divisor: 1
-    },
-
-    color: {
-      buffer: regl.buffer(
-        Array(N * N).fill().map((_, i) => {
-          var x = Math.floor(i / N) / (N - 1)
-          var z = (i % N) / (N - 1)
-          return [
-            x * z * 0.3 + 0.7 * z,
-            x * x * 0.5 + z * z * 0.4,
-            x * z * x + 0.35
-          ]
-        })),
-      divisor: 1
-    },
-
-    angle: {
-      buffer: angleBuffer,
-      divisor: 1
-    }
   },
   elements: bunny.cells,
-  instances: N * N,
   uniforms: {
-    focal: [0,0,0],
+    tex: regl.prop('texture'),
     proj: ({viewportWidth, viewportHeight}) =>
       mat4.perspective([],
         Math.PI / 2,
@@ -147,83 +93,36 @@ const drawBunnies = regl({
 const drawBunniesMap = regl({
   frag: `
   precision mediump float;
-  varying vec3 vNormal;
-  varying vec3 vColor;
-  varying vec3 vPosition;
   varying vec3 vGlPosition;
   uniform vec3 focal;
+  #define range float(5)
   void main () {
-    vec3 color = vColor;
-    vec3 ambient = vec3(0.3) * color;
-    vec3 lightDir = vec3(0.39, 0.87, 0.29);
-    vec3 diffuse = vec3(0.7) * color * clamp(dot(vNormal, lightDir) , 0.0, 1.0 );
-    float z = 1.0 - (abs(distance(focal, vGlPosition)) / 100.0);
+    float z = 1.0 - (abs(distance(focal, vGlPosition)) / range);
     gl_FragColor = vec4(vec3(1.0,1.0,1.0) * z, 1.0);
   }`,
   vert: `
   precision mediump float;
   attribute vec3 position;
   attribute vec3 normal;
-  // These three are instanced attributes.
-  attribute vec3 offset;
-  attribute vec3 color;
-  attribute float angle;
+
   uniform vec3 focal;
+  
   uniform mat4 proj;
   uniform mat4 model;
   uniform mat4 view;
-  varying vec3 vNormal;
-  varying vec3 vColor;
-  varying vec3 vPosition;
+  
   varying vec3 vGlPosition;
   void main () {
-    vNormal = normal;
-    vColor = color;
-    vPosition = position;
-    gl_Position = proj * view * model * vec4(
-      +cos(angle) * position.x + position.z * sin(angle) + offset.x,
-      position.y + offset.y,
-      -sin(angle) * position.x  + position.z * cos(angle) + offset.z,
-      1.0);
+    gl_Position = proj * view * model * vec4(position, 1.0);
     vGlPosition = gl_Position.xyz;
   }`,
   attributes: {
     position: bunny.positions,
     normal: normals(bunny.cells, bunny.positions),
-
-    offset: {
-      buffer: regl.buffer(
-        Array(N * N).fill().map((_, i) => {
-          var x = (-1 + 2 * Math.floor(i / N) / N) * 120
-          var z = (-1 + 2 * (i % N) / N) * 120
-          return [x, 0.0, z]
-        })),
-      divisor: 1
-    },
-
-    color: {
-      buffer: regl.buffer(
-        Array(N * N).fill().map((_, i) => {
-          var x = Math.floor(i / N) / (N - 1)
-          var z = (i % N) / (N - 1)
-          return [
-            x * z * 0.3 + 0.7 * z,
-            x * x * 0.5 + z * z * 0.4,
-            x * z * x + 0.35
-          ]
-        })),
-      divisor: 1
-    },
-
-    angle: {
-      buffer: angleBuffer,
-      divisor: 1
-    }
   },
   elements: bunny.cells,
-  instances: N * N,
   uniforms: {
-    focal: [0,0,0],
+    focal: [0,0,7],
     proj: ({viewportWidth, viewportHeight}) =>
       mat4.perspective([],
         Math.PI / 2,
@@ -270,19 +169,18 @@ const drawBufferBlurred = regl({
   uniform sampler2D maptex;
   varying vec2 fragPosition;
   uniform float wRcp, hRcp;
-  #define R int(8)
 
   void main() {
     const float Pi = 6.28318530718; // Pi*2
     
     // GAUSSIAN BLUR SETTINGS {{{
     const float Directions = 16.0; // BLUR DIRECTIONS (Default 16.0 - More is better but slower)
-    const float Quality = 5.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
+    const float Quality = 4.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
     const float Size = 16.0; // BLUR SIZE (Radius)
-    float W =  float((1 + 2 * R) * (1 + 2 * R));
     
     
     vec4 avg = texture2D(tex, fragPosition);
+    
     for( float d=0.0; d<Pi; d+=Pi/Directions)
     {
         for(float i=1.0/Quality; i<=1.0; i+=1.0/Quality)
@@ -290,7 +188,7 @@ const drawBufferBlurred = regl({
           avg += texture2D(tex, fragPosition+vec2(cos(d) * wRcp,sin(d) * hRcp)*Size*i);
         }
     }
-    avg /= Quality * Directions - 15.0;
+    avg /= Quality * Directions;
 
     
     vec4 actual = texture2D(tex, fragPosition);
@@ -328,40 +226,52 @@ const setupMap = regl({
   framebuffer: mapframebuffer,
 });
 
-regl.frame(({deltaTime, viewportWidth, viewportHeight}) => {
-  framebuffer.resize(viewportWidth, viewportHeight);
-  mapframebuffer.resize(viewportWidth, viewportHeight)
-
-  setupDefault({}, () => {
-    regl.clear({
-      color: [0,0,0, 1],
-      depth: 1,
-    });
-
-    // rotate the bunnies every frame.
-    for (var i = 0; i < N * N; i++) {
-      angle[i] += 0.01;
+require('resl')({
+  manifest: {
+    texture: {
+      type: 'image',
+      src: 'texture.jpg',
+      parser: (data) => regl.texture({
+        data: data,
+        mag: 'linear',
+        min: 'linear',
+        wrap: 'repeat'
+      })
     }
-    angleBuffer.subdata(angle);
+  },
+  onDone: ({texture}) => {
+    regl.frame(({deltaTime, viewportWidth, viewportHeight}) => {
+      framebuffer.resize(viewportWidth, viewportHeight);
+      mapframebuffer.resize(viewportWidth, viewportHeight)
 
-    drawBunnies();
-  });
+      setupDefault({}, () => {
+        regl.clear({
+          color: [0,0,0, 1],
+          depth: 1,
+        });
+        drawBunnies({
+          texture: texture
+        });
+      });
 
-  setupMap({}, () => {
-    regl.clear({
-      color: [0, 0, 0, 1],
-      depth: 1,
-    });
+      setupMap({}, () => {
+        regl.clear({
+          color: [0, 0, 0, 1],
+          depth: 1,
+        });
 
-    drawBunniesMap();
-  });
+        drawBunniesMap();
+      });
 
-  regl.clear({
-    color: [0, 0, 1, 1],
-    depth: 1,
-  });
-  drawBuffer();
-  //drawBufferBlurred();
+      regl.clear({
+        color: [1, 0, 0, 1],
+        depth: 1,
+      });
+      drawBuffer();
+      drawBufferBlurred();
 
-  camera.tick();
+      camera.tick();
+    })
+  }
 })
+
